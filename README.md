@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="./assets/ReddSearchIT-logo.png" alt="ReddSearchIT Logo" width="200">
+</p>
+
+<h3 align="center">Your intelligent guide through Reddit’s chaos</h3>
+
 ReddSearchIT
 
 ReddSearchIT is a Python-based Reddit content monitoring bot that searches specified subreddits for posts matching user-defined keywords. It sends real-time email alerts when matches are found. The bot can be customized for job searches, product tracking, research monitoring, and more.
