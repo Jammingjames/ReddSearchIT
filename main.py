@@ -86,22 +86,30 @@ seen_posts = set()  # keep track of posts already seen to avoid duplicates
 
 
 def search_reddit():
-    logging.info("Searching Reddit...")
+    logging.info("🔎 Searching Reddit...\n")
+
     for name in subreddits:
-        subreddit = reddit.subreddit(name)
-        logging.info(f"Searching r/{name}")
-        for post in subreddit.new(limit=10):  # limit to 10 new posts
-            title = post.title.lower()
-            if post.id not in seen_posts:
-                if any(k in title for k in keywords):
-                    logging.info(
-                        f"Match found! Title: {post.title} | Link: {post.url}")
-                    # Send email
-                    email_subject = f"New Match: {post.title}"
+        try:
+            subreddit = reddit.subreddit(name)
+            logging.info(f"Searching r/{name}")
+
+            for post in subreddit.new(limit=90):  # limit to 10 new posts
+                title = post.title.lower()
+
+                if post.id not in seen_posts and any(k in title for k in keywords):
+                    logging.info(f"✅ Match found in r/{name}: {post.title}")
+                    logging.info(f"Link: {post.url}")
+
+                    email_subject = f"New Match in r/{name}: {post.title}"
                     email_body = f"{post.title}\n\nLink: {post.url}"
                     send_email(email_subject, email_body)
-            seen_posts.add(post.id)
+
+                seen_posts.add(post.id)
+
+        except Exception as e:
+            logging.warning(
+                f"Skipping subreddit '{name}' due to error: {e}")
 while True:
     search_reddit()
     logging.info("Waiting 10 seconds until next search...")
-    time.sleep(10)
+    time.sleep(30)
