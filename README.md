@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/ReddSearchIT-logo.png" alt="ReddSearchIT Logo" width="200"/>
+  <img src="./assets/ReddSearchIT-logo.png" alt="ReddSearchIT Logo" width="200">
 </p>
 
 <h3 align="center">Your intelligent guide through Reddit’s chaos</h3>
