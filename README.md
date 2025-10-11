@@ -70,3 +70,13 @@ Reddit connection events
 Search progress
 Email alerts sent
 Errors or exceptions
+## Version
+
+**v1.0.0 – Stable Release**
+
+This version includes:
+- Modular code structure (`logger`, `emailer`, `reddit_client`, `searcher`)
+- Safe `.env` configuration loading
+- Rotating file logging
+- Email notifications for Reddit keyword matches
+- Error handling for missing or private subreddits

@@ -1,115 +1,31 @@
-# main_copy.py (safe: loads secrets from .env, with logging)
-import time
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-import smtplib
-import praw
-import os
-import logging
-from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
+from bot.logger import setup_logger
+from bot.reddit_client import create_reddit_instance
+from bot.searcher import search_reddit
+from bot.emailer import send_email
+import logging
+import time
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), 'bot'))
+
 load_dotenv()
+setup_logger()
 
-# --- Logging setup ---
-log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+reddit = create_reddit_instance()
 
-file_handler = RotatingFileHandler(
-    "bot.log", maxBytes=2000000, backupCount=5
-)
-file_handler.setFormatter(log_formatter)
+to_email = input("Enter recipient email for alerts: ").strip()
+if not to_email:
+    to_email = os.getenv("TO_EMAIL")  # fallback if they pressed Enter
 
-console_handler = logging.StreamHandler()
-console_handler.setFormatter(log_formatter)
+subreddits = [s.strip() for s in input(
+    "Enter subreddit names (comma-separated): ").split(",") if s.strip()]
+keywords = [k.strip().lower() for k in input(
+    "Enter keywords separated by commas: ").split(",") if k.strip()]
 
-logging.basicConfig(level=logging.INFO, handlers=[
-                    file_handler, console_handler])
+send_email("Bot Started", "Your Reddit search bot is now running", to_email)
 
-# ---- read secrets from environment ----
-FROM_EMAIL = os.getenv("FROM_EMAIL")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-REDDIT_CLIENT_ID = os.getenv("REDDIT_CLIENT_ID")
-REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
-REDDIT_USER_AGENT = os.getenv("REDDIT_USER_AGENT")
-
-if not (FROM_EMAIL and EMAIL_PASSWORD and REDDIT_CLIENT_ID and REDDIT_CLIENT_SECRET and REDDIT_USER_AGENT):
-    raise SystemExit(
-        "Missing one or more required environment variables. Check your .env file.")
-
-# Ask who should receive alerts (so the recipient isn't hardcoded)
-TO_EMAIL = os.getenv("TO_EMAIL") or input(
-    "Enter recipient email for alerts (you): ").strip()
-
-# --- SEND EMAIL FUNCTION ---
-
-
-def send_email(subject, body, to_email=TO_EMAIL):
-    from_email = FROM_EMAIL
-    password = EMAIL_PASSWORD
-
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-
-    try:
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(from_email, password)
-            server.send_message(msg)
-            logging.info("Email alert sent")
-    except Exception as e:
-        logging.error(f"Failed to send email: {e}")
-
-
-# --- USER INPUT FOR SUBREDDITS AND KEYWORDS ---
-subreddits_input = input("Enter subreddit names (comma-separated): ")
-subreddits = [s.strip() for s in subreddits_input.split(",") if s.strip()]
-
-keywords_input = input("Enter keywords separated by commas: ")
-keywords = [k.strip().lower() for k in keywords_input.split(",") if k.strip()]
-
-# --- REDDIT CONNECTION ---
-reddit = praw.Reddit(
-    client_id=REDDIT_CLIENT_ID,
-    client_secret=REDDIT_CLIENT_SECRET,
-    user_agent=REDDIT_USER_AGENT
-)
-
-# Test the connection by printing your Reddit username
-try:
-    logging.info(f"Connected to Reddit as: {reddit.user.me()}")
-    send_email("Bot Started", "Your Reddit search bot is now running")
-except Exception as e:
-    logging.error(f"Error connecting to Reddit: {e}")
-
-seen_posts = set()  # keep track of posts already seen to avoid duplicates
-
-
-def search_reddit():
-    logging.info("🔎 Searching Reddit...\n")
-
-    for name in subreddits:
-        try:
-            subreddit = reddit.subreddit(name)
-            logging.info(f"Searching r/{name}")
-
-            for post in subreddit.new(limit=90):  # limit to 10 new posts
-                title = post.title.lower()
-
-                if post.id not in seen_posts and any(k in title for k in keywords):
-                    logging.info(f"✅ Match found in r/{name}: {post.title}")
-                    logging.info(f"Link: {post.url}")
-
-                    email_subject = f"New Match in r/{name}: {post.title}"
-                    email_body = f"{post.title}\n\nLink: {post.url}"
-                    send_email(email_subject, email_body)
-
-                seen_posts.add(post.id)
-
-        except Exception as e:
-            logging.warning(
-                f"Skipping subreddit '{name}' due to error: {e}")
 while True:
-    search_reddit()
-    logging.info("Waiting 10 seconds until next search...")
+    search_reddit(reddit, subreddits, keywords, to_email, limit=90)
+    logging.info("Waiting 30 seconds until next search...")
     time.sleep(30)
